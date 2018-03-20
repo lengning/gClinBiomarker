@@ -1,0 +1,152 @@
+---
+output: "github_document"
+---
+
+```{r, include=FALSE}
+shieldio_badge <- function(name, text, color, hover = NULL, href = NULL, ..., 
+  url = 'https://img.shields.io/badge/{{name}}-{{text}}-{{color}}.svg',
+  style = 'flat-square') {
+  
+  .dots <- list(...)
+  name  <- RCurl::curlEscape(whisker::whisker.render(name, .dots))
+  text  <- RCurl::curlEscape(whisker::whisker.render(text, .dots))
+  color <- whisker::whisker.render(color, .dots)
+  
+  if (is.numeric(c <- type.convert(color)))
+    color <- switch(letters[[floor(pmax(pmin(c, 1), 0) * 6 + 1)]],
+      g = 'brightgreen',
+      f = 'brightgreen',
+      e = 'green',
+      d = 'yellowgreen',
+      c = 'yellow',
+      b = 'orange',
+      a = 'red')
+  
+  color <- RCurl::curlEscape(color)  
+  url <- whisker::whisker.render(paste(url, paste0('style=', style), sep = '?'))
+  hover <- if (is.null(hover)) name else hover
+  whisker::whisker.render('[![{{hover}}]({{url}})]({{href}})')
+}
+```
+
+```{r build.badges, include=FALSE}
+failed_tests = tryCatch(devtools::test(), error = function(e) NULL)
+failed_tests = if (!is.null(failed_tests) && 'failed' %in% names(as.data.frame(failed_tests))) sum(failed_tests$failed) else 1
+build_badge <- shieldio_badge(
+  'build', '{{p}}', '{{d}}', 'Build Status', 
+  p = if (failed_tests == 0) 'passing' else 'failing', 
+  d = if (failed_tests == 0) 'brightgreen' else 'red')
+
+coverage = covr::percent_coverage(covr::package_coverage()); 
+coverage_badge <- shieldio_badge(
+  'coverage', '{{p}}%', '{{d}}', 'Code Coverage', 
+  p = round(coverage,1), 
+  d = (coverage/100-0.8)/0.2)
+```
+
+
+# gClinBiomarker
+
+`r build_badge` `r coverage_badge`
+
+## Overview
+
+gClinBiomarker is an R package that contains functions to perform baseline and longitutinal biomarker analyses 
+
+Source code: https://github.roche.com/Rpackages/gClinBiomarker
+
+Project page: https://pages.github.roche.com/Rpackages/gClinBiomarker/
+
+Documentations could be found under the "article" tab of the project page. Two documents are provided:
+- A user vignette demonstrates how gClinBiomarker package may help in your biomarker analysis
+- An exapmle use case document which contains more detailed use cases
+
+pdf version of these two documents can be found [here](https://github.roche.com/Rpackages/gClinBiomarker/tree/master/inst/doc).
+
+gClinBiomarker also provide a set of Rmarkdown templates that allow you to generate biomarker analysis report by "one click". The R markdown templates can be found at [here](https://github.roche.com/lengn/gClinbiomarker_documents), along with some slide decks.
+
+## Getting Started
+
+### Installation
+
+To install this package from R, use `install_github()` function from the **devtools** package
+
+In R, type:
+
+```{r, eval = FALSE}
+## install.packages("devtools")
+library(devtools)
+install_github("RPackages/gClinBiomarker", host="https://github.roche.com/api/v3")
+```
+
+Note that on bce (r.bas.roche.com), the default R is from an older version. To install, type
+
+```{r, eval = FALSE}
+install_github("RPackages/gClinBiomarker", host="github.roche.com/api/v3")
+```
+
+### Getting the Documentation
+
+Use the command `vignette(package = 'gClinBiomarker')` to view a list of
+avaialble vignettes for the `gClinBiomarker` package. Then use the command
+`vignette(<vignett_name>)` to view the relevant documentation.
+
+## gClinBiomarker Analysis and Workflows
+
+### Supported endpoint and biomarker types
+
+#### Endpoints
+
+* Time-to-event
+* Binary
+* Continuous
+* Longitudinal
+ 
+#### Biomarkers 
+
+* Continuous
+* Ordinal
+* Categorical
+* Longitudinal
+
+#### Analysis
+
+* 2-arm study: predictive and prognostic biomarker analysis
+* 1-arm study: prognostic biomarker analysis
+ 
+### Workflow
+
+#### Step 1:
+Is your biomarker population your full patient population?
+Take a look at these functions:
+
+`SummaryVars()`, `CompareKM()`, `PlotRspBar()`
+
+#### Step 2:
+Is your biomarker response a dynamic range?
+Does it have a skewed distribution?
+Is it correlated with clinical variables?
+
+`PlotProperty()`, `PlotTabForestMulti()`
+
+#### Step 3:
+Is your biomarker response associated with a clinical outcome?
+Is it prognostic or predictive?
+Is there an optimal biomarker cutoff with a consistent trend?
+
+`PlotTabForestBiomarker()`, `PlotSTEPP()`
+
+#### Step 4:
+
+Estimate the clinical benefit within a biomarker subgroup.
+
+`PlotKM()`, `PlotLong()`, `PlotRspBar()`, `CoxTab()`, `LogRankTab()`
+
+
+```{r, include = FALSE}
+# ![screen shot 2017-09-28 at 1 44 01 pm](https://media.github.roche.com/user/48/files/431d398a-a453-11e7-8801-1c6915156185)
+# ![screen shot 2017-09-28 at 1 44 13 pm](https://media.github.roche.com/user/48/files/47cad168-a453-11e7-85f7-deee2f7604ab)
+# ![screen shot 2017-09-28 at 1 44 24 pm](https://media.github.roche.com/user/48/files/4ad58466-a453-11e7-80be-9af0c23fcedd)
+# ![screen shot 2017-09-28 at 1 44 34 pm](https://media.github.roche.com/user/48/files/507dd1a2-a453-11e7-8216-442f15bd500a)
+# ![screen shot 2017-09-28 at 1 44 43 pm](https://media.github.roche.com/user/48/files/53ab85e0-a453-11e7-825d-718f28d1fca3)
+```

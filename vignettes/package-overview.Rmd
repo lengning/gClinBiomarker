@@ -1,0 +1,944 @@
+---
+title: "gClinBiomarker Package Overivew"
+author: "Ning Leng, Alexey Pronin, Christina Rabe, Doug Kelkhoff, Kwame Okrah"
+date: '`r Sys.Date()`'
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+  pdf_document:
+    toc: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Package Overview}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+if (!require(gClinBiomarker)) { 
+  install_github("lengning/gClinBiomarker")
+  library(gClinBiomarker)
+}
+
+library(knitr)
+```
+# Overview
+
+
+*gClinBiomarker* is an R package that allows users to easily perform biomarker analyses and
+generate high-quality figures and tables. It contains a set of functions covering essential biomarker
+analyses conducted in both oncology and non-oncology trials. It also provides an R markdown template
+that allows users to plug in their data set and generate a biomarker analysis report with "one-click".
+The report contains demographics checking, biomarker property characterization, cutoff exploration
+(for continuous biomarkers), subgroup analysis, and longitudinal analysis. The package takes either VADs
+(AdAM) or a customized csv/data frame. 
+ 
+gClinBiomarker is built on top of the existing Baseline R package (biomarkers). The bulk of the work done on this
+package is on the back-end:
+
+* streamline the original code,
+* create robust documentation, and
+* modularize the package for future extensions. 
+
+This vignette provides general guidelines of using gClinBiomarker package. Example workflows are also provided in the vignette, which cover essential biomarker analyses.
+
+# Install and load the package
+
+To install this package from R, use install_github() function from the devtools package
+
+In R, type:
+
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
+library(devtools)
+install_github("lengning/gClinBiomarker")
+```
+
+Before analysis can proceed, the gClinBiomarker package must be loaded into the working space:
+
+```{r,warning=FALSE, message=FALSE, eval=FALSE}
+library(gClinBiomarker)
+```
+
+# Input
+
+## Input requirement
+Functions in gClinBiomarkers package take data frame as the input format. In this data frame, clinical data and biomarker data should all be included as columns. Rows are samples. 
+
+If only baseline biomarker analysis will be performed, the data frame should have one patient per row, without duplicated entries for any patient.
+
+If longitudinal analysis will be performed, one patient may have multiple enteries for multiple visits.
+
+Functions \verb+ReadData()+ and \verb+ReadVAD()+ may also be used to read in data in csv format and sas7bdat format.
+
+## Example data set: baseline only
+
+An example data set is included in the package:
+
+```{r}
+head(input)
+str(input)
+```
+
+The columns indicates:
+
+* Patient.ID: patient ID
+* Sample.ID: sample ID
+* Arm: treatment arm
+* Age: age (baseline clinical variable, continuous)
+* Age: baseline body Age (baseline clinical variable, continuous)
+* ECOG: ECOG (baseline clinical variable, ordinal)
+* Sex: gender (baseline clinical variable, binary)
+* Baseline.SLD: baseline SLD  (baseline clinical variable, continuous)
+* Country: region  (baseline clinical variable, categorical)
+* CD8.ihc: CD8 IHC measurement (biomarker, protein level, ordinal)
+* KRAS.mutant: KRAS mutation status (biomarker, DNA level, binary)
+* KRAS.exprs: KRAS gene expression (biomarker, mRNA level, continuous)
+* OS: overall survival (clinical outcome)
+* OS.event: censoring indicator for OS, 1 indicates event and 0 indicates censoring (clinical outcome)
+* PFS: progression free survival (clinical outcome)
+* PFS.event: censoring indicator for PFS, 1 indicates event and 0 indicates censoring (clinical outcome)
+* Lab_ontrt: example continuous surrogate endpoint - on treatment lab data; one record per patient
+* Response: best overall overall response (clinical outcome, ordinal)
+* BEP: Biomarker evaluable population indicator. 1: in biomarker evaluable population, 2: not in. (When evaluable multiple biomarkers, we may want to take the same set of patients for all evaluations. Then the can be defined as the patients who have valid measurement for all biomarkers. In this example data set, the BEP is defined as patients who have CD8 IHC data, KRAS mutation data, and KRAS expression data. If only one biomarker is of interest, BEP could be defined as patients who have valid measure for this biomarker. A BEP column is required to perform certain analyses (e.g. selection bias examination of BEP).)
+
+\newpage
+
+# Biomarker workflow
+
+## Continuous biomarker in a two-arm study with survival outcome
+
+We use PFS as our primary endpoint, KRAS.exprs as the biomarker of interest.
+
+### Representativeness: Selection Bias of Biomarker Population
+
+In this section, we are trying to answer the question: *Are biomarker evaluable population representative of the full population population? *
+
+Key baseline demographics and prognostic characteristics (including stratification variables and any variables with known prognostic effect) and efficacy outcomes should be summarized by treatment groups and compared between biomarker evaluable population (BEP) and the full population. These analyses are conducted to investigate any potential selection bias associated with the availability of the biomarker (e.g. we may not get enough tissue for patients whose tumor size is small. Therefore they may be exlcuded from BEP).
+
+
+#### Check selection bias in terms of key clinical variables, between full population and BEP
+
+Function \verb+SumamryVars()+ can be used to perform selection bias checking of clinical variables. 
+For example, if Age and Sex are two key clinical variables, we can perform the selection bias checking by:
+
+
+```{r}
+  SummaryVars(data=input, trt='Arm', subgroup='BEP', var=c('Sex','Age'), 
+       var.class=c('categorical','numeric'))
+```
+
+\verb+kable()+ function from knitr package may be used in Rmarkdown file for better table display:
+
+```{r}
+kable(
+  SummaryVars(data=input, trt='Arm', subgroup='BEP', var=c('Sex','Age'), 
+       var.class=c('categorical','numeric'))
+)
+```
+
+
+
+Here we specify the treatment column via parameter \verb+trt+, and specify the BEP column via parameter \verb+subgroup+. The comparision will be between BEP and the full population (BEP + nonBEP). If BEP vs. non BEP comparison is of interet, the user may specify parameter \verb+compare.subgroup=TRUE+. 
+
+The clinical variables of interest can be specified via \verb+var+. Parameter \verb+var.class+ can be used to specify class of the variable. Possible classes are "categorical","numeric","ordered.factor". If var.class is not specified, the program will define the variable class based on class of the column (class()). Note that for ordinal variable whose levels are numbers, the column need to be converted to ordered factor. Otherwise it will be treated as continuous variable.
+
+
+
+
+#### Check whether the clinical outcome in BEP is comparable to the full population
+
+Function \verb+CompareKM()+ can be used to compare survival outcome in BEP vs. the full population:
+
+```{r, fig.height=5, fig.width=10}
+CompareKM(data=input,tte='PFS', cen='PFS.event',trt='Arm', bep='BEP')
+```
+
+By default, the KM curve and 95% CI will be plotted for each arm. The BEP KM curve is expected to be within the full population confidence bands.
+
+#### Examine whether the prognostic/predictive/null trend of key clinical variables holds in BEP
+
+Function PlotTanForestMulti may be used to examine whether any of the key clinical variables show predictive trend in BEP:
+```{r, fig.height=7,fig.width=10}
+PlotTabForestMulti(data=input,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt="Arm",
+                                  var=c("Sex","Weight"),
+                   bep="BEP",bep.indicator=1, compare.bep.itt=TRUE
+                   )
+```
+
+From the plot above, we can see that variable Sex doesn't show a predictive trend in full population (similar trt/ctrl HR in male and female group). However, in BEP the variable Sex has numerically smaller trt/ctrl HR in Male group. 
+Although from the SummaryVars() result, the percentages of Male are comparable between full population and BEP, it is still possible that the male patients have better clinical outcome than the female group.
+This is likely due to some selection bias that we weren't be able to capture in previous steps (e.g. unmeasured variable).
+In downstream analyses, if the biomarker subgroup also show a predictive effect, we will need to check that whether it is confounded by Sex. 
+
+
+#### Compare treatment effect estimation in full population and in BEP, adjusted for key clinical variables
+Another important summary statistic to look at is the trt/ctrl (target/reference) HR in full population and trt/ctrl HR in BEP. Although highly overlapped curves in figures generated by CompareKM() function suggests that the unadjusted HR in full population and BEP will be comparable, it will be necessary to check adjusted HR as well.
+The following code chunk shows how to use the function CoxTab() to fit a multivariate Cox model by including treatment variable, Sex and Age.
+
+```{r}
+input.bep <- subset(input, BEP==1) # dataset with only BEP samples
+
+kable(
+  CoxTab(data=input,tte="PFS", cens="PFS.event",  var='Arm', 
+       var.class="categorical"),
+caption="full population, unadjusted"
+)
+
+kable(
+  CoxTab(data=input,tte="PFS", cens="PFS.event",  var=c('Arm','Sex',"Weight"), 
+       var.class=c("categorical","categorical","numeric")),
+caption="full population, adjusted for Sex, Weight"
+)
+
+kable(
+  CoxTab(data=input.bep,tte="PFS", cens="PFS.event",  var='Arm', 
+       var.class="categorical"),
+caption="BEP, unadjusted"
+)
+kable(
+  CoxTab(data=input.bep,tte="PFS", cens="PFS.event",  var=c('Arm','Sex',"Weight"), 
+       var.class=c("categorical","categorical","numeric")),
+caption="BEP, adjusted for Sex, Weight"
+)
+
+```
+  
+
+
+If any selection bias is suspected, the user may consider to stratify for the imbalanced factor in downstream analysis (e.g. unstratified analysis as primary analysis and stratified analysis as sensitivity analysis).
+
+
+### Biomarker property and its association to clinical variables
+
+Before performing cutoff exploraotry analysis, it is important to check a biomarker's property. For example, whether this biomarker has a bi-modal or multi modal distribution - if so, this biomarker may has natural cutoff.  
+Relationship between the biomarker and key demographic and prognostic variables should also be investigated using bivariate plots. Prognostic property of the biomarker should also be assessed, by estimates of the clinical efficacy in the control arm.
+
+The \verb+PlotProperty()+ function could be used to generate single variate plot for biomaker and clinical covariates. It can also be used to generate bi-variate plots to investigate biomarker-clinical variable relationship.
+
+#### Biomarker property and relationship to clinical variable
+```{r fig.width=12, fig.height=8}
+PlotProperty(data=input, biomarker.var="KRAS.exprs", biomarker.class="numeric",
+             var=c("Sex", "Country"), var.class=c("categorical", "categorical"),
+             log2=TRUE, par.param = list(mfrow=c(2,3)))
+```
+
+#### Whether the biomarker show within-arm trend
+
+Function \verb+PlotTabForestBiomarker()+ can be used to investigate whether the biomarker shows within-arm trend:
+```{r fig.width=8, fig.height=4}
+input.ctrl <- subset(input, Arm=="CTRL") ## Data with only ctrl samples
+res.multicut.ctrl <- PlotTabForestBiomarker(data=input.ctrl,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75), main.prefix="CTRL",
+                                  greater=TRUE, less=FALSE)
+
+input.trt <- subset(input, Arm=="TRT") ## Data with only trt samples
+res.multicut.trt <- PlotTabForestBiomarker(data=input.trt,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75), main.prefix="TRT", 
+                                  greater=TRUE, less=FALSE)
+```
+
+We first get dataset input.ctrl and input.trt, which only contains patients in ctrl arm and trt arm, respectively.
+In function \verb+PlotTabForestBiomarker()+, time to event variable and censoring variable need to be specified via \verb+outcome.var+. The biomarker variable can be specified via \verb+var+. By specifying \verb+percentile.cutoff+ as \verb+c(.25,.5,.75)+ and specifying \verb+greater + TRUE+, the program calculates within-arm HR of biomarker >= 25% vs <25% group, biomarker >= 50% vs <50% group, and biomarker >= 75% vs <75% group.
+
+In ctrl arm, patients who have expression >= 75% have slightly better PFS  - >= 75% vs <75% HR is 0.83, and the median PFS is slightly higher in >= 75% group (4.73) vs <75% (3.45).
+
+In trt arm, within-arm trend is seen in all three comparisons - for all 3 cutoffs, patients with higher expression have longer PFS than patients with low expression. The biomarker high vs. low HR are all around 0.5.
+
+If strong within-arm effect is seen in both arms, the biomarker may be prognostic but not predictive. 
+
+
+If stratified or adjusted analyses are of interest, they can be specified via parameters \verb+covariate+ and \verb+strata+.
+
+### Seeking for predictive trend: Biomarker cutoff exploration/selection 
+
+Example codes in this section can be used to examine multiple candidate cutoffs for a continuous biomarker. 
+The need for cut-off determination should be rooted in the development strategy. In general, an exhaustive search looking at all possible cut-off values is not recommended for decision making. Over-optimized cutoff using one set of clinical data may lead to hard-to-reproduce results. When determining a cutoff, biomarker property should be considered - e.g. cut at a low-dense point may be more robust to population shift. The cutoff selection should also fit the program's stratigitic considerations. There is always a prevalence-effect size trade-off, inputs from multiple functions are needed - for example whether the team is willing to take more risk in PTS (high prevalence, weaker signal) or the team is willing to target at smaller population (lower prevalence, stronger signal)
+
+#### Try different cutoffs - look for consistent trend 
+
+Function \verb+PlotTabForestBiomarker()+ can also be used to investigate whether the biomarker is predictive across arm. To perform cross-arm analysis, parameter \verb+trt+ needs to be specified. By specifying \verb+ trt+ ane \verb+greater=TRUE+, trt/ctrl HR of biomarker >= 25% group, biomarker >= 50% group, and biomarker >= 75% group are calculated:
+
+```{r, fig.height=5,fig.width=10 }
+res.multicut <- PlotTabForestBiomarker(data=input,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt="Arm",
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75), 
+                                  greater=TRUE, less=FALSE,
+                                  show.itt=TRUE, show.bep=TRUE)
+```
+
+#### Estimations within non-overlapping bins
+
+Function \verb+PlotTabForestBiomarker()+ can also be used to calculate trt/ctrl HR within percentile bins. For example, by specifying \verb+within.bin=TRUE+, trt/ctrl HR of biomarker 0-25% group, 25-50% group, 50-75% group,and 75-100% group are calculated:
+
+```{r, fig.height=5,fig.width=10 }
+res.withinbin <- PlotTabForestBiomarker(data=input,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt="Arm",
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75), 
+                                  within.bin=TRUE,
+                                  show.itt=TRUE, show.bep=TRUE)
+```
+
+#### Estimations within overlapped sliding windows - STEPP plot
+STEPP refers to Subgroup Treatment Effect Pattern Plot and it investigates relationship between biomarker and treatment effect. Only continuous biomarkers are suitable for STEPP analysis. STEPP performs treatment effect estimation on overlapping subsets of patients defined according to the biomarker level. The default setting of run.STEPP slides subgroup windows by 5% for each step and the subgroup size is 25% of the whole population.
+
+A monotone trend is expected to be seen for an ideal biomarker.
+
+```{r}
+stepp.out <- PlotSTEPP(data = input,
+          outcome.var = c("PFS", "PFS.event"),
+          outcome.class = "survival",
+          trt = "Arm",
+          var = "KRAS.exprs",
+          placebo.code = "CTRL",
+          active.code = "TRT"
+) 
+```
+
+Here we can see the trt/ctrl HR decreases as the biomarker expression increases. 
+
+### Biomarker subgroup analysis (using selected cutoff)
+
+When a cutoff is selected, the following functions can be used to perfrom subgroups analysis. Suppose that we decided to use 100 as cutoff.
+
+#### Estimations within each subgroup
+
+\verb+PlotTabForestBiomarker()+ function can again be used to estimate the treatment effect in biomarker subgroups. Here given that we have a numerical cutoff, it can be specified using parameter \verb+numerical.cutoff+. And \verb+percentile.cutoff+ can be left as NULL.
+
+```{r, fig.height=5,fig.width=8 }
+res.subgroups.cut <- PlotTabForestBiomarker(data=input,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt="Arm",
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=NULL,
+                                  numerical.cutoff=100, within.bin=TRUE,
+                                  show.itt=TRUE, show.bep=TRUE)
+```
+
+This can also be done by converting the continuous marker to a binary variable:
+
+```{r, fig.height=5,fig.width=10}
+input$KRAS.exprs.2group <- ifelse(input$KRAS.exprs >= 100, ">=100","<100")
+input$KRAS.exprs.2group <- factor(input$KRAS.exprs.2group, levels=c(">=100","<100")) # ">=100" as Dx+
+res.subgroups.bi <- PlotTabForestBiomarker(data=input,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt="Arm",
+                                  var="KRAS.exprs.2group", 
+                                  var.class="categorical",
+                                  show.itt=TRUE, show.bep=TRUE)
+```
+
+
+#### KM curves
+
+Function \verb+PlotKM()+ can be used to generate the KM curves of biomarker subgroups:
+
+```{r  include=TRUE,fig.width=9, fig.height=9}
+PlotKM(data=input, tte="PFS",cen="PFS.event", bep="BEP", 
+             main="PFS BEP by treatment, by KRAS expression subgroups", 
+             var=c("Arm","KRAS.exprs.2group"), legend.loc="topright",
+       plot.median=TRUE)
+```
+
+
+#### Check whether biomarker subgroup is confounded with key clinical variables
+
+Functions \verb+SummaryVars()+ and \verb+PlotTabForestMulti()+ can again be used to check whether the biomarker subgroup is confounded with clinical variable. Using sex variable as an exmaple, instead of checking whether the F/M percentage is comparable in the full population vs. BEP, here we check the F/M percentage is comparable in biomarker high and low group. To perform such analysis we can specify \verb+subgroup+ as \verb+"KRAS.exprs.2group"+, and specify \verb+compare.subgroup=TRUE+. By doing so the program will compare the ">=100" group vs. others.
+
+\tiny
+```{r}
+input.bep <- subset(input, BEP==1)
+kable(
+SummaryVars(data=input.bep,trt='Arm', subgroup='KRAS.exprs.2group', var=c('Sex'), 
+       var.class="categorical", subgroup.indicator=">=100",compare.subgroup=TRUE, subgroup.name="exprs")
+)
+```
+
+\normalsize
+
+\verb+PlotTabForestMulti()+ function could be used to look at treatment effect in smaller subgroups defined by both biomarker and clinical variables. 
+For example, if we are interested in the trt/ctrl HR in following groups: biomarker high Male; biomarker high female; biomarker low male; biomarker low female, etc. We may specify \verb+subgroup+ as the biomarker variable, and \verb+var+ as the clinical variables of interest. By setting \verb+compare.bep.itt=FALSE+ and \verb+compare.subgroup=TRUE+, the program will calculate the summary statistics within each subgroup. For numerical clinical variable, it will be dichotomized by its median.
+
+```{r, fig.height=7,fig.width=10}
+res.subgroup.cov <- PlotTabForestMulti(data=input,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt="Arm",
+                                  var=c("Sex","Weight"),
+                   compare.bep.itt=FALSE,
+                   compare.subgroup=TRUE,
+                   subgroup="KRAS.exprs.2group"
+                   )
+```
+
+In this case, no treatment effect difference is observed between the Female vs. Male subgroups (as well as weight high & low).
+
+\newpage
+
+## Continuous biomarker in a single-arm study with survival outcome
+
+We generate a data set with only patients from the treatment arm to mimic the case of single arm study:
+
+```{r}
+input.trt <- subset(input, Arm=="TRT")
+```
+
+We use PFS as primary endpoint, KRAS.exprs as biomarker of interest. We only take the treat
+
+### Representativeness: Selection Bias of Biomarker Population
+
+#### Check selection bias in terms of key clinical variables, between the full population and BEP
+
+```{r}
+kable(
+  SummaryVars(data=input.trt, trt=NULL, subgroup='BEP', var=c('Age','Sex'), 
+       var.class=c('numeric','categorical'))
+)
+```
+
+#### Check whether the clinical outcome in BEP is comparable to the full population
+
+```{r, fig.height=5, fig.width=5}
+CompareKM(data=input.trt,tte='PFS', cen='PFS.event',trt=NULL, bep='BEP')
+```
+
+#### Examine whether the prognostic/null trend of key clinical variables holds in BEP
+```{r, fig.height=7,fig.width=10}
+PlotTabForestMulti(data=input.trt,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt=NULL,
+                                  var=c("Sex","Weight"),
+                   bep="BEP",bep.indicator=1, compare.bep.itt=TRUE
+                   )
+```
+
+Age is a prognostic factor in both the full population and BEP.
+Sex show stronger prognostic trend in BEP, but not in the full population.
+
+```{r}
+input.trt.bep <- subset(input.trt, BEP==1) # dataset with only BEP samples
+
+kable(
+  CoxTab(data=input.trt,tte="PFS", cens="PFS.event",  var=c('Sex',"Weight"), 
+       var.class=c("categorical","numeric")),
+caption="the full population, model of Sex, Weight"
+)
+kable(
+  CoxTab(data=input.trt.bep,tte="PFS", cens="PFS.event",  var=c('Sex',"Weight"), 
+       var.class=c("categorical","numeric")),
+caption="BEP, model of Sex, Weight"
+)
+```
+
+
+### Biomarker property and association with clinical variables
+
+```{r fig.width=7, fig.height=4}
+PlotProperty(data=input.trt, biomarker.var="KRAS.exprs", biomarker.class="numeric",
+             var=c("Sex", "Country"), var.class=c("categorical", "categorical"),
+             log2=TRUE, par.param = list(mfrow=c(1,2)))
+```
+
+
+
+### Biomarker cutoff exploration/selection
+
+#### Try different cutoffs - look for consistent trend
+
+```{r, fig.height=5,fig.width=8 }
+res.multicut <- PlotTabForestBiomarker(data=input.trt,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt=NULL,
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75), 
+                                  greater=TRUE, less=FALSE,
+                                  show.itt=FALSE, show.bep=FALSE)
+```
+
+
+Within-bin analysis and STEPP are not available in single-arm analysis.
+
+### Biomarker subgroup analysis (using selected cutoff)
+
+#### Subgroup analysis
+
+Suppose the proposed cutoff is 100
+
+```{r, fig.height=4,fig.width=8 }
+res.subgroups.cut <- PlotTabForestBiomarker(data=input.trt,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt=NULL,
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=NULL,
+                                  numerical.cutoff=100, 
+                                  greater=TRUE,less=FALSE,
+                                  show.itt=FALSE, show.bep=FALSE)
+```
+
+This can also be done by converting the continous marker to a binary variable
+
+```{r, fig.height=4,fig.width=9}
+input.trt$KRAS.exprs.trt.2group <- ifelse(input.trt$KRAS.exprs >= 100, ">=100","<100")
+input.trt$KRAS.exprs.2group <- factor(input.trt$KRAS.exprs.2group, levels=c(">=100","<100")) # ">=100" as Dx+
+
+res.subgroups.bi <- PlotTabForestBiomarker(data=input.trt,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt=NULL,
+                                  var="KRAS.exprs.trt.2group", 
+                                  var.class="categorical",
+                                  show.itt=FALSE, show.bep=FALSE)
+```
+
+#### KM curves
+
+```{r  include=TRUE,fig.width=7, fig.height=7}
+PlotKM(data=input.trt, tte="PFS",cen="PFS.event", bep="BEP", 
+             main="PFS in BEP, by KRAS expression subgroups, single arm", 
+             var=c("KRAS.exprs.trt.2group"), legend.loc="topright",
+       plot.median=TRUE)
+```
+
+
+#### Check whether biomarker subgroup is confounded with clinical variables
+
+```{r}
+input.trt.bep <- subset(input.trt, BEP==1)
+kable(
+SummaryVars(data=input.trt.bep,trt=NULL, subgroup='KRAS.exprs.2group', var=c('Sex'), 
+       var.class="categorical", subgroup.indicator=">=100",compare.subgroup=TRUE, subgroup.name="exprs")
+)
+```
+
+
+\newpage
+
+## Categorical biomarker with survival outcome
+
+### Two-arm study
+Analyses in section 4.1 can also be applied to categorial biomarker, except the cutoff exploration part (section 4.1.3).
+
+For example, for categorical biomarker KRAS.mutant, the subgroup analysis can be performed using the \verb+PlotTabForestBiomarker()+ function:
+
+
+```{r, fig.height=4,fig.width=9}
+res.subgroups.cat <- PlotTabForestBiomarker(data=input,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt="Arm",
+                                  var="KRAS.mutant", 
+                                  var.class="categorical",
+                                  show.itt=TRUE, show.bep=TRUE)
+```
+
+The forest plot above provides HR estimates across two arms
+
+### Single-arm study
+
+Similarly, most functions in section 4.2 can be applied to categorical biomarker analysis (except the cutoff exploration part in section 4.2.3). For example, taking the \verb+input.trt+
+data set which only contains patients from treatment arm:
+```{r, fig.height=4,fig.width=9}
+res.subgroups.cat <- PlotTabForestBiomarker(data=input.trt,
+                                  outcome.class="survival",
+                                  outcome.var=c("PFS","PFS.event"),
+                                  trt=NULL,
+                                  var="KRAS.mutant", 
+                                  var.class="categorical")
+```
+
+\newpage
+
+## Categorical outcome (e.g. response)
+
+### Check selection bias in terms of key clinical variables, between full population and BEP
+
+Majority of functions from section 4.1.1 can be directly applied on analyses of categorical endpoints.
+
+
+Function \verb+SumamryVars()+ in section 4.1.1 can still be used to perform selection bias checking of clinical variables. To check whether clinical outcome in BEP is comparable to the full population, user can use function \verb+PlotRspBar()+ when the clinical outcome is response assessment. The parameter \verb+rep.levels+ may be used to define order of the levels.
+
+```{r, fig.height=7,fig.width=7}
+Rsp.out <- PlotRspBar(data=input, outcome.var="Response", binary=FALSE,
+rsp.levels=c("CR", "PR","SD","NON CR/PD", "PD","NE"),trt="Arm",
+compare.bep.itt=TRUE, bep = "BEP")
+```
+
+The summary statistics can be obtained by:
+```{r}
+kable(Rsp.out$count,caption="count")
+```
+
+```{r}
+kable(round(Rsp.out$perc,2), caption="percentage")
+```
+
+
+To plot counts instead of percentage, one can specify the \verb+plot.count+ parameter to TRUE:
+
+```{r, fig.height=7,fig.width=7}
+PlotRspBar(data=input, outcome.var="Response", binary=FALSE,
+rsp.levels=c("CR", "PR","SD","NON CR/PD", "PD","NE"),trt="Arm",
+compare.bep.itt=TRUE, bep = "BEP", plot.count=TRUE)
+```
+
+To summarize the response into two classes - responder vs. non-responder, user may set the parameter \verb+binary+ to TRUE. Parameter \verb+rsp.response+ (\verb+rsp.nonresponse+) can be used to define levels to be considered as responder (non-responder). Patients whose response outcome don't fall into these defined levels will be elminated from the analysis.
+
+```{r, fig.height=7,fig.width=7}
+Rsp.out.2 <- PlotRspBar(data=input, outcome.var="Response", binary=TRUE,
+rsp.response = c("CR","PR"),
+rsp.nonresponse = c("SD", "PD","NON CR/PD","NE"),trt="Arm",
+compare.bep.itt=TRUE, bep = "BEP")
+```
+
+The summary statistics can be obtained by:
+```{r}
+kable(Rsp.out.2$count,caption="count")
+```
+
+```{r}
+kable(round(Rsp.out.2$perc,2), caption="percentage")
+```
+
+To plot counts instead of percentage, one can specify the \verb+plot.count+ parameter to TRUE:
+
+```{r, fig.height=7,fig.width=7}
+PlotRspBar(data=input, outcome.var="Response", binary=TRUE,
+rsp.response = c("CR","PR"),
+rsp.nonresponse = c("SD", "PD","NON CR/PD","NE"),trt="Arm",
+compare.bep.itt=TRUE, bep = "BEP", plot.count = TRUE)
+```                   
+
+
+### Continuous biomarker in a two-arm study
+
+Most of functions in workflow in section 4.1 may be used in analyses of continuous biomarker in a 2-arm study with categorical response.  The following sections show examples of categorical-response specific use cases
+
+#### Check within-arm trend
+
+To check the within-arm trend associated with categorical outcome, user may use the same function \verb+PlotTabForestBiomarker()+ as in section 4.1.2.2. Instead of specifying outcome.class as "survival", user can specify outcome.class as "binary".
+
+
+
+
+
+```{r, fig.height=6,fig.width=8 }
+input.ctrl <- subset(input, Arm=="CTRL") ## Data with only ctrl samples
+res.multicut.ctrl <- PlotTabForestBiomarker(data=input.ctrl,
+                                  outcome.class=c("binary"),
+                                  outcome.var=c("Response"),
+                                  rsp.cat = TRUE,
+                                  rsp.response = c("CR","PR"),
+                                  rsp.nonresponse = c("SD", "PD","NON CR/PD","NE",NA),
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75), main.prefix="CTRL",
+                                  greater=TRUE, less=FALSE)
+  
+
+input.trt <- subset(input, Arm=="TRT") ## Data with only trt samples
+res.multicut.trt <- PlotTabForestBiomarker(data=input.trt,
+                                  outcome.class=c("binary"),
+                                  outcome.var=c("Response"),
+                                  rsp.cat = TRUE,
+                                  rsp.response = c("CR","PR"),
+                                  rsp.nonresponse = c("SD", "PD","NON CR/PD","NE",NA),
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75), main.prefix="TRT",
+                                  greater=TRUE, less=FALSE)
+```
+
+The summary statistics shown in the forest plot is 
+
+deltaRR = [Response Rate in biomarker high] - [Response Rate in biomarker low]
+
+To calculate the response rate, user needs to binarize the response classes into two classes.
+
+Parameter \verb+rsp.response+ (\verb+rsp.nonresponse+) can be used to define levels to be considered as responder (non-responder). Patients whose response outcome don't fall into these defined levels will be elminated from the analysis.
+
+In both arms, we observe that patients with higher expression tend to have higher response rate. This indicates that in terms of response, KRAS.exprs shows prognostic trend.
+
+
+#### Seeking for predictive trend: cutoff exploration/selection
+
+Similar to the example in section 4.1.3,
+
+function \verb+PlotTabForestBiomarker()+ also can be used for cutoff exploration.
+
+```{r, fig.height=6,fig.width=10 }
+res.multicut.2arm <- PlotTabForestBiomarker(data=input,
+                                  outcome.class=c("binary"),
+                                  outcome.var=c("Response"),
+                                  trt = "Arm",
+                                  rsp.cat = TRUE,
+                                  rsp.response = c("CR","PR"),
+                                  rsp.nonresponse = c("SD", "PD","NON CR/PD","NE",NA),
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75),
+                                  greater=TRUE, less=FALSE)
+```
+
+In across-arm analysis, for a given subgroup, the delta RR is calculated as [Response Rate in treatment] - [Response Rate in control]
+
+From the figure above, we can observe that no matter where we set the biomarker cutoff, the biomarker high group always shows similar delta RR as the BEP delta RR (as well as full population delta RR)
+
+We can further examine the predictive trend by looking at the within-bin analysis:
+
+```{r, fig.height=6,fig.width=10 }
+res.multicut.2arm <- PlotTabForestBiomarker(data=input,
+                                  outcome.class=c("binary"),
+                                  outcome.var=c("Response"),
+                                  trt = "Arm",
+                                  rsp.cat = TRUE,
+                                  rsp.response = c("CR","PR"),
+                                  rsp.nonresponse = c("SD", "PD","NON CR/PD","NE",NA),
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75),
+                                  within.bin=TRUE)
+
+```
+
+
+This indicates that there is no clear predictive trend in terms of the response outcome - the result doesn't show that the higher (lower) the expression, the more benefit in treatment arm compare to control arm.
+
+#### Subgroup analysis
+
+Suppose that we are interested in looking at subgroup analysis using cutoff = 100, function \verb+PlotRspBar()+ can again be used to perform the subgroup analysis. To do so, user can input the dichotomized biomarker variable into parameter \verb+var+, and specify \verb+compare.var=TRUE+
+
+```{r, fig.height=7,fig.width=7}
+input$KRAS.exprs.2group <- ifelse(input$KRAS.exprs >= 100, ">=100","<100")
+input$KRAS.exprs.2group <- factor(input$KRAS.exprs.2group, levels=c(">=100","<100")) # ">=100" as Dx+
+Rsp.out.2 <- PlotRspBar(data=input, outcome.var="Response", binary=TRUE,
+rsp.response = c("CR","PR"),
+rsp.nonresponse = c("SD", "PD","NON CR/PD","NE"),trt="Arm",
+ bep = "BEP",compare.var=TRUE, var="KRAS.exprs.2group")
+```
+
+The subgroup analysis again confirmed the prognostic effect - when biomarker is high (>=100), patients in both TRT and CTRL arms have improved response outcome.
+
+Compare to results shown in section 4.1, we see that teh KRAS.exprs show predictive trend in terms of PFS, but prognostic trend in terms of response outcome. Although those results are based on simulated data, in empirical study it is also possible that the biomarker shows different trend when associating to different endpoints (e.g. response vs. PFS, PFS vs. OS, investigator PFS vs. IRF PFS). Therefore when analyzing biomarker data, it is important to make sure the analysis is using appropriate endpoint. 
+
+### Other scenarios
+
+#### Continuous biomarker in a single-arm study
+
+See section 4.2 and section 4.4.2
+
+#### Categorical biomarker in a two-arm study
+
+See section 4.3.1 and section 4.4.2
+
+#### Categorical biomarker in a single-arm study
+
+See section 4.3.2 and section 4.4.2
+
+## Continuous outcome
+
+The similar workflow can be applied to cases with continuous endpoint. 
+
+For example, function \verb+PlotTabForestBiomarker()+ can also be used for continuous endpoint. Using Lab_ontrt as continuous surrogate endpoint:
+
+```{r, fig.height=5,fig.width=7}
+
+res.multicut <- PlotTabForestBiomarker(data=input,
+                                  outcome.class="continuous",
+                                  outcome.var="Lab_ontrt",
+                                  trt="Arm",
+                                  var="KRAS.exprs", 
+                                  var.class="numeric",
+                                  percentile.cutoff=c(.25,.5,.75), 
+                                  greater=TRUE, less=FALSE,
+                                  show.itt=TRUE, show.bep=TRUE)
+```
+
+The forest plot above shows the difference in mean between treatment arm and control arm.
+
+Function \verb+PlotSTEPP()+ can also be used for continuous endpoint:
+
+```{r}
+stepp.out <- PlotSTEPP(data = input,
+          outcome.var = "Lab_ontrt",
+          outcome.class = "continuous",
+          trt = "Arm",
+          var = "KRAS.exprs",
+          placebo.code = "CTRL",
+          active.code = "TRT"
+) 
+```
+\newpage
+
+## Longitudinal analysis (e.g. PD biomarker)
+
+### Longitudinal Sample Data (`longbmkr`)
+
+```{r, message=FALSE}
+head(longbmkr)
+```
+
+```{r longbmkr_description, message=FALSE, echo=FALSE}
+kable(
+    data.frame(
+        `Column Name` = names(longbmkr),
+        `English Name` = c("PatientID", "Treatment", "Sex", "Age", "Education", "Biomarker Measurement", "Visitation Month", "Endpoint Measurement"),
+        `Description` = c(
+            "Unique Patient Identifier",
+            "Binary Classification of Treatment (1) or Control (0)",
+            "Male (\"m\") or Female (\"f\") binary classification of sex",
+            "Age of Patient",
+            "Years of Education for the Patient",
+            "Biomarker Measurement|Mock Biomarker Measurement Reading",
+            "Timepoint that data was collected",
+            "Mock Endpoint Measurement Reading"
+        ),
+        check.names = FALSE),
+    caption = "Longitudinal Biomarker Sample Data"
+)
+```
+
+### Baseline Plots of Subsetted Longitudinal Data
+
+The baseline data for longitudinal data can be accessed by subsetting the data for only the visitation that took place at month 0. This can be done in a couple ways. In base-R (without any extra packages), this can be done by slicing the data on the condition.
+
+```{r}
+baseline_data <- longbmkr[longbmkr['vm'] == 0,]
+
+kable(
+    head(baseline_data),
+    caption = 'longitudinal data subset by visit month to produce baseline data'
+)
+```
+
+Baseline data from longitudinal data can be used for any of the plots described herein similar to the examples above.
+
+### Longitudinal Plots with `PlotLong`
+
+The `PlotLong` function is called with only a small set of arguments. The first is the data to plot and the second is an aesthetic mapping (using the function `aes()`) to map columns to visual outputs. In it's most simple form, you can plot the distribution of endpoint readings over the timecourse, for the entire patient population. By default, the `PlotLong` function plots a line with points at the timepoints for which data exists with a ribbon showing the mean +/- standard error at that timestamp.
+
+```{r}
+PlotLong(longbmkr, x=vm, y=ep)
+```
+
+#### Tukey Hinges and Whiskers
+
+However, we may be more interested in the population distribution progression where we'd want to plot the Tukey boxplot hinges and whiskers over time. From this plot, we can see that although there is a slow rise in population mean, the patient response also becomes more distributed. You can specify, using the `fun.data` argument, exactly what the ribbons represent by using any keyword that can be passed to `stat_summary_funs` including "mean_sd" (mean +/- standard deviation), "mean_sd" (mean +/- standard error of the mean), "median_iqr" (median +/- interquartile range), "tukey" (tukey boxplot hinges and whiskers), "quartiles" and "deciles".
+
+```{r}
+PlotLong(longbmkr, x=vm, y=ep, fun.data = 'tukey',
+         xlab = 'Visitation Month',
+         ylab = 'Biomarker Endpoint',
+         labs.title = 'Tukey Whiskers and Hinges')
+```
+
+#### Plotting Subpopulations (Two-Armed Trials)
+
+By giving aesthetic mappings to flags for subpopulations, you can easily vary the colors by adding aesthetics. In this case, we map the line color and ribbon fill to the treatment arm data, allowing a two arm trial representation. 
+
+```{r}
+PlotLong(longbmkr, x=vm, y=ep, color=trt, fill=trt, 
+         fun.data = 'tukey',
+         xlab = 'Visitation Month',
+         ylab = 'Biomarker Endpoint',
+         labs.title = 'Biomarker Timecourse',
+         labs.caption = 'Ribbons represent Tukey hinges and whiskers')
+```
+
+Similarly, we could also choose to subset our treatment arms by sex and represent this as two separate plots, one for each sex classification. In this case, we facet the plot by a formula (which is passed to `ggplot::facet_grid()`).
+
+```{r}
+PlotLong(longbmkr, x=vm, y=ep, group=trt, color=trt, fill=trt, 
+         fun.data = 'tukey', facet.fun = . ~ sex,
+         xlab = 'Visitation Month',
+         ylab = 'Biomarker Endpoint',
+         labs.title = 'Biomarker Timecourse',
+         labs.caption = 'Ribbons represent Tukey hinges and whiskers')
+```
+
+#### Including sample counts
+
+The `PlotLong` function also accepts inputs to the argument `show.counts`, accepting either "label" or "table". This is used to represent sample number in each timepoint, for each grouping. For this and the followign plots, we'll do some preprocessing for which we'll use the `dplyr` package.
+
+```{r}
+library(dplyr)
+```
+
+```{r, fig.height = 5}
+cutoff = 1.5
+
+longbmkr %>%
+    filter(vm <= 24) %>%
+    mutate(bmkr = ifelse(bmkr > cutoff, 'Positive', 'Negative')) %>%
+    mutate(trt  = ifelse(trt == 0, 'CTRL', 'TRT')) %>%
+    
+    PlotLong(x=vm, y=ep, color=trt, fill=trt, linetype=bmkr,
+             fun.data = 'mean_se',
+             show.counts = 'table',
+             plot.style = 'errorbars',
+             errorbar.linetype = 1,
+             xlab = 'Visitation Month',
+             ylab = 'Endpoint',
+             labs.title = 'Biomarker Timecourse',
+             labs.caption = '*ribbons represent mean value +/- standard error of the mean.')
+```
+
+#### Specifying a function for adjustment
+
+(Currently a work-in-progress!)
+
+```{r, fig.height = 5}
+cutoff = 1.5
+
+longbmkr %>%
+    filter(vm <= 24) %>%
+    mutate(bmkr = ifelse(bmkr > cutoff, 'Positive', 'Negative')) %>%
+    mutate(trt  = ifelse(trt == 0, 'CTRL', 'TRT')) %>%
+    
+    PlotLong(x=vm, y=ep, color=trt, fill=trt, linetype=bmkr,
+             model = lm,
+             model.formula = ep ~ sex + edu + age, 
+             fun.data = 'mean_se',
+             show.counts = 'table',
+             plot.style = 'errorbars',
+             errorbar.linetype = 1,
+             xlab = 'Visitation Month',
+             ylab = 'Endpoint',
+             labs.title = 'Biomarker Timecourse',
+             labs.caption = '*ribbons represent mean value +/- standard error of the mean.')
+```
+
+
+# Acknowledgement
+
+We would like to thank Imola Fodor, Jane Zhenya Fridlyand and Zhuoye Xu for sponsoring this project. We would also like to thank to all previous
+developers of this project (Ru-Fang Yeh, Yuanyuan Xiao, YJ Choi, Ron Yu,
+Yuda Zhu, Jayantha Ratnayake, Sofia Mosesova, Chris Cabansk,
+Sydney Lee, Yi Li), including current ad-hoc advisors/contributors Wei Zou, Ray Lin and
+Guiyuan Lei. 
