@@ -11,9 +11,9 @@ gClinBiomarker is an R package that contains functions to perform baseline and l
 
 Two documents are provided: - A user vignette demonstrates how gClinBiomarker package may help in your biomarker analysis - An exapmle use case document which contains more detailed use cases
 
-pdf version of these two documents can be found  at inst/doc
+pdf version of these two documents can be found  at inst/doc: https://github.com/lengning/gClinBiomarker/tree/master/inst/doc
 
-The Rmarkdown templates to run the automatic workflows can be found here[https://github.com/lengning/gClinBiomarker-templates]
+The Rmarkdown templates to run the automatic workflows can be found here: https://github.com/lengning/gClinBiomarker-templates
 
 
 Getting Started
