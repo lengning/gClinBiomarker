@@ -13,6 +13,8 @@ Two documents are provided: - A user vignette demonstrates how gClinBiomarker pa
 
 pdf version of these two documents can be found  at inst/doc
 
+The Rmarkdown templates to run the automatic workflows can be found here[https://github.com/lengning/gClinBiomarker-templates]
+
 
 Getting Started
 ---------------
