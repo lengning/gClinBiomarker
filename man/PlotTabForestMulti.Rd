@@ -100,7 +100,7 @@ At the same time rsp.response and rsp.nonresponse will be ignored.}
 \item{var.code}{ordered levels of the biomarker variable. This will be ignored for continuous biomarker.
 If the biomarker is categorical and this is NULL, biomarker subgroups will be ordered by the order from factor() function}
 
-\item{tabforest}{Default is FALSE. If it is FALSE, forest plot will be generated using forestplot() function.
+\item{tabforest}{Default is FALSE. If it is FALSE, forest plot will be generated using forestplot::forestplot() function.
 If it is TRUE, a table will be generated with forest plots incorpriated}
 
 \item{alpha}{type I error rate. Default is 0.05.}
@@ -125,7 +125,7 @@ If it is TRUE, a table will be generated with forest plots incorpriated}
 
 \item{only.stat}{if it is TRUE, only summary statistics will be generated. No figure will be generated}
 
-\item{pdf.name}{name of output pdf file. If it's NULL, the plots will be displayed but not saved as pdf. Default is "Forestplot.pdf".}
+\item{pdf.name}{name of output pdf file. If it's NULL, the plots will be displayed but not saved as pdf. Default is "forestplot::forestplot.pdf".}
 
 \item{pdf.param}{a list of parameters that define pdf graphics device. See \code{\link{pdf}}. Default is \code{list(width=6, height=4.5)}.}
 

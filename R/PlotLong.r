@@ -83,7 +83,8 @@ PlotLong <- function(data, mapping = NULL, model = lm, model.per = NULL,
 
   if (is.null(mapping)) {
     args <- split_aes_from_dots(...)
-    mapping <- args$aes; .dots <- args$not_aes
+    mapping <- args$aes
+    .dots   <- args$not_aes
   } else .dots <- list(...)
 
   # collapse linetype to group to allow for ggpack overrides (errorbar color)
@@ -94,7 +95,7 @@ PlotLong <- function(data, mapping = NULL, model = lm, model.per = NULL,
   # accommodate model fitting
   if (!is.null(model.formula))  {
     # ensure model variables reflect plotted variables
-    if (deparse(mapping$y) != model.formula[[2]])
+    if (gsub("^~", "", deparse(mapping$y)) != model.formula[[2]])
       stop('Independent model.formula variable must be the same as y aesthetic')
 
     # add model fit output to data

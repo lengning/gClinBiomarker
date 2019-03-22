@@ -86,7 +86,7 @@ to define the biomarker evaluable population.}
 
 \item{strata}{name of the stratification variables. Default is set to NULL, meaning no stratification.}
 
-\item{tabforest}{Default is FALSE. If it is FALSE, forest plot will be generated using forestplot() function.
+\item{tabforest}{Default is FALSE. If it is FALSE, forest plot will be generated using forestplot::forestplot() function.
 If it is TRUE, a table will be generated with forest plots incorpriated}
 
 \item{quantile.type}{an integer between 1 and 9 selecting one of the nine quantile algorithms. See \code{\link{quantile}}. Default is 2.}
@@ -135,7 +135,7 @@ If the biomarker is categorical and this is NULL, biomarker subgroups will be or
 
 \item{only.stat}{if it is TRUE, only summary statistics will be generated. No figure will be generated}
 
-\item{pdf.name}{name of output pdf file. If it's NULL, the plots will be displayed but not saved as pdf. Default is "Forestplot.pdf".}
+\item{pdf.name}{name of output pdf file. If it's NULL, the plots will be displayed but not saved as pdf. Default is "forestplot::forestplot.pdf".}
 
 \item{pdf.param}{a list of parameters that define pdf graphics device. See \code{\link{pdf}}. Default is \code{list(width=6, height=4.5)}.}
 

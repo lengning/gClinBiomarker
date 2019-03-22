@@ -243,8 +243,8 @@ PlotTabForestMulti <- function(data,
           if(nArms==1)xlab <- c("","")
       }
     
-    xlog <- FALSE
-    if(outcome.class=="binary") xlog <- TRUE
+    xlog <- TRUE
+    if(outcome.class=="binary") xlog <- FALSE
     num1 <- 5
     num2 <- 6
     wid2 <- c( wid,2, 1.5, 1, 1, 2, 1, 5)

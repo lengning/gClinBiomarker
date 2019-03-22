@@ -366,9 +366,9 @@ flatten_aesthetics_to_group <- function(mapping, ...) {
 split_aes_from_dots <- function(..., geom = NULL) {
   if (is.null(geom)) aes_list <- safe_private_export('ggplot2', '.all_aesthetics')
   else aes_list <- allowed_aesthetics(geom)
-  aes_args     <- structure(substitute(...()), class = 'uneval')
+  aes_args     <- substitute(...())
   not_aes_args <- aes_args[!names(aes_args) %in% aes_list]
-  aes_args     <- aes_args[names(aes_args) %in% aes_list]
+  aes_args     <- structure(aes_args[names(aes_args) %in% aes_list], class = 'uneval')
   list(aes = do.call(ggplot2::aes, aes_args),
        not_aes = not_aes_args)
 }

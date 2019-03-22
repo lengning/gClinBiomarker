@@ -82,8 +82,8 @@ ggpk_ribbons <- function(
   # use standard ribbon geom if ribbon.stat is 'identity'
   (if ('identity' %in%  dots[c(paste0(id, '.stat'), 'ribbon.stat')])
     ggpack(ggplot2::geom_ribbon, id = c(id, 'ribbon'),
-           stat = 'summary', dots =  dots, color = NA,
-           alpha = 0.85 / 3 * ( dots$ribbon.alpha %||% 1))
+      stat = 'summary', dots =  dots, color = NA,
+      alpha = 0.85 / 3 * ( dots$ribbon.alpha %||% 1))
 
     # reduce through list of ribbon geoms and collect sum
     else
@@ -96,12 +96,12 @@ ggpk_ribbons <- function(
     ## pack ## point
     # plot point along stat y
     ggpack(ggplot2::geom_point, id = c(id, 'point'),
-           stat = 'summary', dots =  dots) +
+      stat = 'summary', dots =  dots) +
 
     ## pack ## line
     # plot line along stat y
     ggpack(ggplot2::geom_line, id = c(id, 'line'),
-           stat = 'summary', dots =  dots) +
+      stat = 'summary', dots =  dots) +
 
     ## pack ## label
     # add labels of group counts
@@ -117,7 +117,6 @@ ggpk_ribbons <- function(
           stat = 'summary', dots =  dots, label.size = 0,
           fill = 'white',alpha = 0.85)
       })
-
     } else if (show.counts == 'table') {
       ggpack(geom_text_table, id = c(id, 'label'),
           stat = 'summary', dots =  dots, show.legend = FALSE)

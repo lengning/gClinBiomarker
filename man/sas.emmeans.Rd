@@ -32,11 +32,9 @@ confidence level outputs}
 Compute emmeans to mirror SAS emmeans functionality
 }
 \examples{
-library(dplyr) # for \%>\% operator
-library(nlme)  # for gls
-
 # create model on which to calculate emmeans
-model <- gls(mpg ~ hp + carb + wt,
+# for sake of reusable example lm is used, but can accommodate all models
+model <- lm(mpg ~ hp + carb + wt,
   data = mtcars, na.action = na.exclude)
 
 # call emmeans, specifying factors over which means should be calculated

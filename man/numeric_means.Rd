@@ -11,6 +11,8 @@ numeric_means(data, potential_vars = names(data), verbose = FALSE)
 
 \item{potential_vars}{A character vector of potential variable names to
 consider}
+
+\item{verbose}{include verbose output of numeric means calculations}
 }
 \value{
 A named list with names as the numeric subset of the variable names

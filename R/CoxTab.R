@@ -24,12 +24,11 @@
 #' To calculate log rank test p value across different subgroups, see LogRankTab()
 #'
 #' @importFrom stats as.formula complete.cases fisher.test kruskal.test sd
-#' @importFrom coin cmh_test pvalue
 #'
 #' @inheritParams SummaryVars
 #' @inheritParams PlotTabForestBiomarker
 #' @inheritParams PlotKM
-#' 
+#'
 #'
 #' @examples
 #' data(input)

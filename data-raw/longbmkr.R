@@ -1,3 +1,5 @@
+
+
 rbimodal <- function (n, cpct, mu1, mu2, sig1, sig2) {
   y0 <- rnorm(n,mean=mu1, sd = sig1)
   y1 <- rnorm(n,mean=mu2, sd = sig2)
@@ -67,4 +69,4 @@ longbmkr <-
   mutate(trt = as.factor(trt),
          sex = as.factor(sex))
 
-devtools::use_data(longbmkr, overwrite = TRUE)
+usethis::use_data(longbmkr, overwrite = TRUE)

@@ -63,20 +63,21 @@ When specifying arguments for wrapped ggplot geometries, id the
   \code{ggpk_stat_ribbon(ribbon.alpha = 0.8, line.alpha = 0.6)}
 }
 \examples{
-library(tidyverse) # for dplyr, ggplot
-library(lubridate)
+library(dplyr)
+library(ggplot2)
 
-nasa \%>\% as_tibble \%>\%
-  mutate(date = ymd("0000/01/01") + months(month) + years(year)) \%>\%
-  mutate(hemisphere = ifelse(lat>0,"Northern", "Southern")) \%>\%
+nasa \%>\%
+  as.data.frame() \%>\%
+  mutate(date = as.Date(sprintf("\%04d\%02d01", year, month), "\%Y\%m\%d")) \%>\%
+  mutate(hemisphere = ifelse(lat > 0,"Northern", "Southern")) \%>\%
   mutate(temperature = temperature - 273) \%>\%
 
   # plotting
   ggplot() +
-    aes(x=date, y=temperature) +
-    ggpk_ribbons(fun.data = 'deciles') +
+    aes(x = date, y = temperature) +
+    ggpk_ribbons(fun.data = "deciles") +
     facet_grid(hemisphere ~ .) +
-    labs(title="Temperature by Hemisphere")
+    labs(title = "Temperature by Hemisphere")
 
 }
 \author{
